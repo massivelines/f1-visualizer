@@ -1,15 +1,8 @@
-const MULTIVIEWER_URL = "https://api.multiviewer.app/api/v1/circuits/9/2025";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
 export async function GET() {
-  const res = await fetch(MULTIVIEWER_URL, { next: { revalidate: 86400 } });
-
-  if (!res.ok) {
-    return Response.json(
-      { error: "Failed to fetch circuit data" },
-      { status: res.status }
-    );
-  }
-
-  const data = await res.json();
+  const filePath = resolve(process.cwd(), "public/data/circuit.json");
+  const data = JSON.parse(readFileSync(filePath, "utf-8"));
   return Response.json(data);
 }

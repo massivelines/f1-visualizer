@@ -9,7 +9,7 @@ import type { CircuitData } from "@/app/hooks/useF1Data";
 export default function Track({ circuit }: { circuit: CircuitData }) {
   const trackPoints = useMemo(() => {
     const raw = circuit.x.map((x, i) => ({ x, y: circuit.y[i] }));
-    return normalizeCircuitPoints(raw);
+    return normalizeCircuitPoints(raw, undefined, circuit.z);
   }, [circuit]);
 
   const ribbonGeometry = useMemo(() => {
@@ -18,9 +18,7 @@ export default function Track({ circuit }: { circuit: CircuitData }) {
     const curve = new THREE.CatmullRomCurve3(trackPoints, true, "catmullrom", 0.5);
     const numSamples = 800;
     const trackWidth = 3.5;
-    const thickness = 0.35;
     const halfW = trackWidth / 2;
-    const halfH = thickness / 2;
 
     const pts = curve.getPoints(numSamples);
     const positions: number[] = [];
@@ -33,12 +31,14 @@ export default function Track({ circuit }: { circuit: CircuitData }) {
       // Perpendicular direction in the XZ ground plane
       const right = new THREE.Vector3(-dir.z, 0, dir.x);
 
-      // 4 verts per ring: top-left, top-right, bottom-left, bottom-right
+      // 4 verts per ring:
+      //   TL/TR — top surface follows track elevation
+      //   BL/BR — bottom is extruded down to the flat base plane (y = 0)
       positions.push(
-        curr.x - right.x * halfW, curr.y + halfH, curr.z - right.z * halfW, // TL
-        curr.x + right.x * halfW, curr.y + halfH, curr.z + right.z * halfW, // TR
-        curr.x - right.x * halfW, curr.y - halfH, curr.z - right.z * halfW, // BL
-        curr.x + right.x * halfW, curr.y - halfH, curr.z + right.z * halfW  // BR
+        curr.x - right.x * halfW, curr.y, curr.z - right.z * halfW, // TL
+        curr.x + right.x * halfW, curr.y, curr.z + right.z * halfW, // TR
+        curr.x - right.x * halfW, 0,      curr.z - right.z * halfW, // BL
+        curr.x + right.x * halfW, 0,      curr.z + right.z * halfW  // BR
       );
     }
 
@@ -49,11 +49,11 @@ export default function Track({ circuit }: { circuit: CircuitData }) {
 
       // Top face
       indices.push(c, c + 1, nx,  c + 1, nx + 1, nx);
-      // Bottom face (winding reversed)
+      // Bottom face — flat at y=0 (winding reversed for outward normals)
       indices.push(c + 2, nx + 2, c + 3,  c + 3, nx + 2, nx + 3);
-      // Left side
+      // Left wall — connects top-left edge down to base
       indices.push(c, nx, c + 2,  nx, nx + 2, c + 2);
-      // Right side
+      // Right wall — connects top-right edge down to base
       indices.push(c + 1, c + 3, nx + 1,  nx + 1, c + 3, nx + 3);
     }
 
@@ -78,9 +78,18 @@ export default function Track({ circuit }: { circuit: CircuitData }) {
         [{ x: c.trackPosition.x, y: c.trackPosition.y }],
         bbox
       );
-      return { number: c.number, position: pos };
+      // Snap label elevation to the nearest circuit point so it sits above the track
+      let nearestY = 0;
+      let best = Infinity;
+      for (const tp of trackPoints) {
+        const dx = tp.x - pos.x;
+        const dz = tp.z - pos.z;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < best) { best = d2; nearestY = tp.y; }
+      }
+      return { number: c.number, position: pos, labelY: nearestY + 2 };
     });
-  }, [circuit]);
+  }, [circuit, trackPoints]);
 
   return (
     <group>
@@ -93,7 +102,7 @@ export default function Track({ circuit }: { circuit: CircuitData }) {
       {cornerLabels.map((corner) => (
         <Billboard
           key={corner.number}
-          position={[corner.position.x, 2, corner.position.z]}
+          position={[corner.position.x, corner.labelY, corner.position.z]}
           follow
         >
           <Text

@@ -82,12 +82,14 @@ export function normalizeLocationPoints(
 }
 
 /**
- * Normalize MultiViewer circuit coordinates the same way we'd normalize location data.
- * Circuit data has no z, so y=0.
+ * Normalise circuit centerline points into scene coordinates.
+ * If elevationZ is provided (raw OpenF1 z units), Y is mapped to [0, 8] using
+ * the same scale as normalizeLocationPoints so the track and car markers align.
  */
 export function normalizeCircuitPoints(
   circuitPoints: { x: number; y: number }[],
-  referenceBbox?: BoundingBox
+  referenceBbox?: BoundingBox,
+  elevationZ?: number[]
 ): THREE.Vector3[] {
   const bbox = referenceBbox ?? getBoundingBox(circuitPoints);
   const rangeX = bbox.maxX - bbox.minX;
@@ -95,11 +97,19 @@ export function normalizeCircuitPoints(
   const maxRange = Math.max(rangeX, rangeY);
   const halfScene = SCENE_SIZE / 2;
 
-  return circuitPoints.map((p) => {
+  // Compute z bounds for elevation (if provided)
+  let zMin = 0, zMax = 1;
+  if (elevationZ && elevationZ.length > 0) {
+    zMin = Math.min(...elevationZ);
+    zMax = Math.max(...elevationZ);
+  }
+
+  return circuitPoints.map((p, i) => {
     const x = remap(p.x, bbox.minX, bbox.minX + maxRange, -halfScene, halfScene);
     // Negate Z so north (high Y) maps to negative Three.js Z ("up" in bird's-eye view)
     const z = remap(p.y, bbox.minY, bbox.minY + maxRange, halfScene, -halfScene);
-    return new THREE.Vector3(x, 0, z);
+    const y = elevationZ ? remap(elevationZ[i], zMin, zMax, 0, 8) : 0;
+    return new THREE.Vector3(x, y, z);
   });
 }
 

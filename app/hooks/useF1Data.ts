@@ -180,6 +180,8 @@ export function useCarData(sessionKey: number | undefined, driverNumber: number 
 export interface CircuitData {
   x: number[];
   y: number[];
+  /** Per-point elevation in raw OpenF1 z units (same scale as LocationPoint.z). */
+  z?: number[];
   corners: { number: number; angle: number; length: number; trackPosition: { x: number; y: number } }[];
   marshalLights: { trackPosition: { x: number; y: number } }[];
   marshalSectors: { trackPosition: { x: number; y: number } }[];
