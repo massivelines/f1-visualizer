@@ -73,7 +73,8 @@ export function normalizeLocationPoints(
 
   return valid.map((p) => {
     const x = remap(p.x, bbox.minX, bbox.minX + maxRange, -halfScene, halfScene);
-    const z = remap(p.y, bbox.minY, bbox.minY + maxRange, -halfScene, halfScene);
+    // Negate Z so north (high Y) maps to negative Three.js Z ("up" in bird's-eye view)
+    const z = remap(p.y, bbox.minY, bbox.minY + maxRange, halfScene, -halfScene);
     // Elevation — scale proportionally; exaggerate slightly so hills are visible
     const y = remap(p.z, bbox.minZ, bbox.maxZ, 0, 8);
     return new THREE.Vector3(x, y, z);
@@ -96,7 +97,8 @@ export function normalizeCircuitPoints(
 
   return circuitPoints.map((p) => {
     const x = remap(p.x, bbox.minX, bbox.minX + maxRange, -halfScene, halfScene);
-    const z = remap(p.y, bbox.minY, bbox.minY + maxRange, -halfScene, halfScene);
+    // Negate Z so north (high Y) maps to negative Three.js Z ("up" in bird's-eye view)
+    const z = remap(p.y, bbox.minY, bbox.minY + maxRange, halfScene, -halfScene);
     return new THREE.Vector3(x, 0, z);
   });
 }
